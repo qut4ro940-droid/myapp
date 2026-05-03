@@ -1,0 +1,18 @@
+{
+  "name": "マイダッシュボード",
+  "short_name": "Dashboard",
+  "description": "日付・ニュース・予定をまとめたパーソナルダッシュボード",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0f1a",
+  "theme_color": "#1a1a3e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

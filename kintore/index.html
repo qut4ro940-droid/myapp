@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>筋トレ記録</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f5a623">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="筋トレ">
+<link rel="apple-touch-icon" href="icon.svg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #111;
+  color: #eee;
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+
+/* ナビ */
+.nav {
+  display: flex;
+  background: #1a1a1a;
+  border-bottom: 2px solid #222;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.nav-btn {
+  flex: 1;
+  padding: 14px 4px;
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.15s;
+}
+.nav-btn.active { color: #f5a623; border-bottom-color: #f5a623; }
+.nav-back { color: #666; text-decoration: none; font-size: 12px; flex: 0.7; }
+
+/* 日付ナビ（記録するタブ用） */
+.date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #161616;
+  border-bottom: 1px solid #222;
+  position: sticky;
+  top: 47px;
+  z-index: 99;
+}
+.date-nav-arrow {
+  background: none;
+  border: none;
+  color: #f5a623;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 2px 10px;
+  line-height: 1;
+}
+.date-nav-arrow:active { opacity: 0.5; }
+.date-nav-arrow:disabled { color: #333; }
+.date-nav-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.date-nav-label { font-size: 15px; font-weight: bold; color: #eee; }
+.date-nav-today-btn {
+  font-size: 11px;
+  color: #f5a623;
+  background: none;
+  border: 1px solid #f5a623;
+  border-radius: 8px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.date-nav-today-btn:active { opacity: 0.6; }
+
+/* ページ */
+.page { display: none; padding: 16px; }
+.page.active { display: block; }
+
+/* カード */
+.card {
+  background: #1e1e1e;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+/* 見出し */
+.page-title { font-size: 13px; color: #666; margin-bottom: 14px; }
+.section-title { font-size: 17px; font-weight: bold; color: #f5a623; margin-bottom: 10px; }
+
+/* ボタン */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.75; }
+.btn-primary { background: #f5a623; color: #111; }
+.btn-secondary { background: #2a2a2a; color: #ccc; }
+.btn-ghost { background: none; border: 1px solid #333; color: #aaa; }
+
+/* ─── ホーム画面 ─── */
+
+/* ヒーローカード */
+.hero-card {
+  background: linear-gradient(145deg, #1e1e1e 0%, #221a00 100%);
+  border: 1px solid #2e2600;
+  border-radius: 18px;
+  padding: 24px 16px 20px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.hero-days-num {
+  font-size: 72px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 2px;
+  letter-spacing: -2px;
+}
+.hero-days-num.green { color: #4cde80; }
+.hero-days-num.orange { color: #f5a623; }
+.hero-days-num.red { color: #ff6b6b; }
+.hero-today-label {
+  font-size: 22px;
+  font-weight: 900;
+  color: #4cde80;
+  letter-spacing: 2px;
+  margin-bottom: 2px;
+}
+.hero-days-sub {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 14px;
+}
+.hero-message {
+  font-size: 16px;
+  font-weight: bold;
+  color: #eee;
+  line-height: 1.5;
+}
+
+/* 統計行 */
+.stats-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.stat-card {
+  flex: 1;
+  background: #1e1e1e;
+  border-radius: 14px;
+  padding: 14px 8px;
+  text-align: center;
+}
+.stat-value {
+  font-size: 32px;
+  font-weight: 900;
+  color: #f5a623;
+  line-height: 1;
+}
+.stat-unit { font-size: 14px; font-weight: normal; color: #f5a623; }
+.stat-label { font-size: 11px; color: #555; margin-top: 5px; line-height: 1.4; }
+.stat-icon { font-size: 18px; margin-bottom: 4px; }
+
+/* ストリーク炎 */
+.streak-fire { font-size: 20px; }
+
+/* カレンダー */
+.calendar-card {
+  background: #1e1e1e;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.cal-title { font-size: 15px; font-weight: bold; color: #eee; }
+.cal-nav-btn {
+  background: none;
+  border: none;
+  color: #f5a623;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 2px 8px;
+  line-height: 1;
+}
+.cal-nav-btn:active { opacity: 0.5; }
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.cal-dow {
+  text-align: center;
+  font-size: 11px;
+  color: #444;
+  padding: 4px 0 8px;
+}
+.cal-dow:first-child { color: #c04040; }
+.cal-dow:last-child  { color: #4060c0; }
+.cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 13px;
+  color: #555;
+  cursor: default;
+  position: relative;
+  transition: opacity 0.1s;
+}
+.cal-day.has-record {
+  background: #f5a623;
+  color: #111;
+  font-weight: bold;
+  cursor: pointer;
+}
+.cal-day.has-record:active { opacity: 0.7; }
+.cal-day.is-today {
+  border: 2px solid #888;
+  color: #ccc;
+}
+.cal-day.has-record.is-today {
+  border: 2px solid #fff3;
+  background: #f5a623;
+  color: #111;
+  box-shadow: 0 0 8px #f5a62355;
+}
+.cal-day.is-sun { color: #663333; }
+.cal-day.is-sat { color: #333366; }
+.cal-day.has-record.is-sun,
+.cal-day.has-record.is-sat { color: #111; }
+
+/* 今日のサマリー */
+.today-summary-ex { margin-bottom: 10px; }
+.today-summary-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: #eee;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pr-badge {
+  background: #f5a623;
+  color: #111;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+.today-summary-sets { font-size: 12px; color: #999; line-height: 1.8; }
+
+/* ─── 記録するタブ ─── */
+.ex-card {
+  background: #1e1e1e;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.ex-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.ex-name { font-size: 16px; font-weight: bold; }
+.ex-delete { background: none; border: none; color: #555; font-size: 22px; cursor: pointer; padding: 0 4px; }
+
+.prev-box {
+  background: #162416;
+  border: 1px solid #2a4a2a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.prev-label { font-size: 11px; color: #5a9a5a; margin-bottom: 4px; letter-spacing: 0.5px; }
+.prev-text { color: #7ec87e; line-height: 1.7; }
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.set-num { width: 24px; font-size: 12px; color: #666; text-align: center; flex-shrink: 0; }
+.input-wrap { flex: 1; }
+.input-label { font-size: 11px; color: #666; margin-bottom: 3px; text-align: center; }
+.num-input {
+  background: #2a2a2a;
+  border: 1.5px solid #333;
+  border-radius: 10px;
+  color: #eee;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 10px 6px;
+  width: 100%;
+  text-align: center;
+  -webkit-appearance: none;
+}
+.num-input:focus { outline: none; border-color: #f5a623; }
+.set-del { background: none; border: none; color: #444; font-size: 20px; cursor: pointer; flex-shrink: 0; }
+.add-set-btn {
+  background: #252525;
+  border: 1px dashed #333;
+  border-radius: 10px;
+  color: #888;
+  font-size: 14px;
+  padding: 10px;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.no-prev { font-size: 12px; color: #555; margin-bottom: 12px; font-style: italic; }
+
+/* ─── モーダル ─── */
+.modal-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 200;
+  align-items: flex-end;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: #1a1a1a;
+  border-radius: 22px 22px 0 0;
+  padding: 20px 16px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.modal-title { font-size: 17px; font-weight: bold; color: #f5a623; margin-bottom: 14px; }
+
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tag {
+  padding: 7px 14px;
+  background: #252525;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.1s;
+}
+.tag.on { border-color: #f5a623; color: #f5a623; background: #1a1500; }
+
+.ex-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 13px 12px;
+  background: #252525;
+  border-radius: 10px;
+  margin-bottom: 7px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.ex-option:active { background: #2e2e2e; }
+.ex-option.used { opacity: 0.35; pointer-events: none; }
+.ex-option-name { font-size: 15px; flex: 1; }
+.ex-option-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.ex-option-add { color: #f5a623; font-size: 22px; }
+.fav-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 2px; line-height: 1; }
+.fav-btn:active { opacity: 0.5; }
+.modal-section-label {
+  font-size: 11px;
+  color: #555;
+  padding: 10px 4px 6px;
+  letter-spacing: 0.8px;
+  border-top: 1px solid #252525;
+  margin-top: 4px;
+}
+.modal-section-label:first-child { border-top: none; margin-top: 0; padding-top: 2px; }
+
+.custom-wrap { margin-top: 14px; }
+.custom-label { font-size: 12px; color: #666; margin-bottom: 6px; }
+.custom-input {
+  background: #252525;
+  border: 1.5px solid #333;
+  border-radius: 10px;
+  color: #eee;
+  font-size: 15px;
+  padding: 12px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.custom-input:focus { outline: none; border-color: #f5a623; }
+
+/* ─── 推移タブ ─── */
+.chart-wrap { overflow-x: auto; padding-bottom: 8px; }
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-height: 120px;
+  padding: 0 4px;
+  min-width: max-content;
+}
+.bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bar-val { font-size: 10px; color: #f5a623; font-weight: bold; }
+.bar {
+  width: 36px;
+  background: linear-gradient(to top, #f5a623, #f5d623);
+  border-radius: 5px 5px 0 0;
+  min-height: 4px;
+}
+.bar-date { font-size: 10px; color: #666; white-space: nowrap; }
+.no-data { text-align: center; color: #444; padding: 32px; font-size: 14px; }
+
+/* 空状態 */
+.empty { text-align: center; color: #444; padding: 32px 20px; }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-text { font-size: 14px; line-height: 1.6; }
+
+/* 同期ステータス */
+.sync-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: #1a1a1a;
+  font-size: 11px;
+  color: #555;
+  border-bottom: 1px solid #222;
+}
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #555; flex-shrink: 0; }
+.sync-dot.ok { background: #4caf50; }
+.sync-dot.err { background: #f44336; }
+.sync-dot.loading { background: #f5a623; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* 設定ページ */
+.setting-section { margin-bottom: 20px; }
+.setting-label { font-size: 12px; color: #666; margin-bottom: 8px; letter-spacing: 0.5px; }
+.setting-value {
+  background: #1e1e1e;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  color: #888;
+  word-break: break-all;
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}
+.code-row { display: flex; gap: 8px; align-items: stretch; }
+.code-row .setting-value { flex: 1; }
+.copy-btn {
+  background: #2a2a2a;
+  border: none;
+  border-radius: 10px;
+  color: #f5a623;
+  font-size: 13px;
+  padding: 0 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.copy-btn:active { opacity: 0.7; }
+.link-input {
+  background: #1e1e1e;
+  border: 1.5px solid #333;
+  border-radius: 10px;
+  color: #eee;
+  font-size: 13px;
+  padding: 12px;
+  width: 100%;
+  margin-bottom: 8px;
+  font-family: monospace;
+}
+.link-input:focus { outline: none; border-color: #f5a623; }
+.setting-note { font-size: 12px; color: #555; line-height: 1.6; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div class="sync-bar" id="sync-bar">
+  <div class="sync-dot" id="sync-dot"></div>
+  <span id="sync-msg">同期中...</span>
+</div>
+
+<nav class="nav">
+  <a class="nav-btn nav-back" href="../">← TOP</a>
+  <button class="nav-btn active" id="nav-today" onclick="goPage('today',this)">ホーム</button>
+  <button class="nav-btn" id="nav-log" onclick="goPage('log',this)">記録する</button>
+  <button class="nav-btn" id="nav-progress" onclick="goPage('progress',this)">推移</button>
+  <button class="nav-btn" id="nav-settings" onclick="goPage('settings',this)">設定</button>
+</nav>
+
+<!-- 日付ナビ（記録するタブのみ表示） -->
+<div class="date-nav" id="date-nav" style="display:none;">
+  <button class="date-nav-arrow" id="date-prev-btn" onclick="shiftDate(-1)">&#8249;</button>
+  <div class="date-nav-center">
+    <div class="date-nav-label" id="date-nav-label"></div>
+    <button class="date-nav-today-btn" id="date-today-btn" onclick="goToday()" style="display:none;">今日に戻る</button>
+  </div>
+  <button class="date-nav-arrow" id="date-next-btn" onclick="shiftDate(1)">&#8250;</button>
+</div>
+
+<!-- ホーム -->
+<div id="page-today" class="page active">
+  <div id="today-body"></div>
+</div>
+
+<!-- 記録する -->
+<div id="page-log" class="page">
+  <div id="log-body"></div>
+</div>
+
+<!-- 推移 -->
+<div id="page-progress" class="page">
+  <div id="progress-body"></div>
+</div>
+
+<!-- 設定 -->
+<div id="page-settings" class="page">
+  <div class="page-title">同期・設定</div>
+  <div class="card setting-section">
+    <div class="section-title" style="font-size:15px;">この端末の同期コード</div>
+    <div class="setting-label">他の端末で入力すると同じデータを使えます</div>
+    <div class="code-row">
+      <div class="setting-value" id="uid-display">読み込み中...</div>
+      <button class="copy-btn" onclick="copyUid()">コピー</button>
+    </div>
+    <div class="setting-note">※ このコードは秘密にしてください。知っている人はデータを読み書きできます。</div>
+  </div>
+  <div class="card setting-section">
+    <div class="section-title" style="font-size:15px;">別の端末とリンク</div>
+    <div class="setting-label">PCの同期コードをここに入力すると、同じデータになります</div>
+    <input class="link-input" id="link-input" type="text" placeholder="同期コードを貼り付け">
+    <button class="btn btn-primary" onclick="linkDevice()">この端末をリンクする</button>
+    <div class="setting-note">※ 現在この端末にある記録は上書きされます。</div>
+  </div>
+  <div class="card setting-section">
+    <div class="section-title" style="font-size:15px;">同期状態</div>
+    <div id="settings-sync-status" style="font-size:13px;color:#888;">確認中...</div>
+    <button class="btn btn-secondary" style="margin-top:12px;" onclick="manualSync()">今すぐ同期する</button>
+  </div>
+  <div class="card setting-section">
+    <div class="section-title" style="font-size:15px;">ローカルデータ確認</div>
+    <div class="setting-label">現在この端末に保存されているデータ件数</div>
+    <div id="local-data-count" style="font-size:20px;font-weight:bold;color:#4cde80;margin:8px 0;">確認中...</div>
+    <button class="btn btn-secondary" onclick="checkLocalData()">確認する</button>
+    <div id="local-data-detail" style="font-size:11px;color:#666;margin-top:8px;word-break:break-all;max-height:120px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- 種目追加モーダル -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="modal-title">種目を追加</div>
+    <div class="tag-row" id="modal-tags"></div>
+    <div id="modal-list"></div>
+    <div class="custom-wrap">
+      <div class="custom-label">リストにない場合は直接入力</div>
+      <input class="custom-input" id="custom-input" type="text" placeholder="例：インクラインダンベルプレス" inputmode="text">
+      <button class="btn btn-primary" onclick="addCustom()">追加する</button>
+    </div>
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// Supabase設定
+// ─────────────────────────────────────────
+const SUPABASE_URL = 'https://sgrdmxdqzteqqewcaven.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNncmRteGRxenRlcXFld2NhdmVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMjk5NTgsImV4cCI6MjA5MDcwNTk1OH0.v831eW1v3xl8hHmBRX6i4O_CSiX1Zv0ikV2_ae-WkAg';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─────────────────────────────────────────
+// ユーザーID
+// ─────────────────────────────────────────
+function getUid() {
+  let uid = localStorage.getItem('wk_uid');
+  if (!uid) { uid = crypto.randomUUID(); localStorage.setItem('wk_uid', uid); }
+  return uid;
+}
+
+// ─────────────────────────────────────────
+// 同期ステータスUI
+// ─────────────────────────────────────────
+function setSyncStatus(state, msg) {
+  document.getElementById('sync-dot').className = 'sync-dot ' + state;
+  document.getElementById('sync-msg').textContent = msg;
+  const el = document.getElementById('settings-sync-status');
+  if (el) el.textContent = msg;
+}
+
+// ─────────────────────────────────────────
+// ローカルストレージ
+// ─────────────────────────────────────────
+function load() { return JSON.parse(localStorage.getItem('wk') || '[]'); }
+function save(d) { localStorage.setItem('wk', JSON.stringify(d)); }
+
+// ─────────────────────────────────────────
+// お気に入り
+// ─────────────────────────────────────────
+function loadFavs() { return JSON.parse(localStorage.getItem('wk_favs') || '[]'); }
+function saveFavs(f) { localStorage.setItem('wk_favs', JSON.stringify(f)); }
+function toggleFav(name) {
+  const favs = loadFavs();
+  const i = favs.indexOf(name);
+  if (i >= 0) favs.splice(i, 1); else favs.unshift(name);
+  saveFavs(favs);
+  renderModalList();
+}
+
+// ─────────────────────────────────────────
+// Supabase同期
+// ─────────────────────────────────────────
+async function syncFromCloud() {
+  setSyncStatus('loading', '同期中...');
+  try {
+    const { data, error } = await db.from('workouts').select('date, exercises').eq('uid', getUid()).order('date');
+    if (error) throw error;
+    // クラウドにデータがある場合のみローカルを上書きする
+    if (data && data.length > 0) {
+      save(data.map(r => ({ date: r.date, exercises: r.exercises })));
+    }
+    setSyncStatus('ok', '同期済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}));
+    return true;
+  } catch(e) {
+    console.warn('sync failed:', e);
+    setSyncStatus('err', 'オフライン（ローカルデータを表示中）');
+    return false;
+  }
+}
+
+async function pushToCloud(sess) {
+  try {
+    const { error } = await db.from('workouts').upsert(
+      { uid: getUid(), date: sess.date, exercises: sess.exercises, updated_at: new Date().toISOString() },
+      { onConflict: 'uid,date' }
+    );
+    if (error) throw error;
+    setSyncStatus('ok', '保存済み ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}));
+  } catch(e) {
+    setSyncStatus('err', '保存失敗（ローカルには保存済み）');
+  }
+}
+
+function checkLocalData() {
+  const data = load();
+  const countEl = document.getElementById('local-data-count');
+  const detailEl = document.getElementById('local-data-detail');
+  const withEx = data.filter(w => w.exercises && w.exercises.length > 0);
+  countEl.textContent = `${withEx.length}日分の記録`;
+  if (withEx.length > 0) {
+    detailEl.textContent = withEx.slice(-5).map(w => `${w.date}: ${w.exercises.map(e => e.name).join('、')}`).join('\n') + (withEx.length > 5 ? `\n...他${withEx.length - 5}日` : '');
+  } else {
+    detailEl.textContent = 'データが見つかりません';
+  }
+}
+
+async function manualSync() {
+  await syncFromCloud();
+  if (currentPage === 'today') renderToday();
+  if (currentPage === 'progress') renderProgress();
+}
+
+// ─────────────────────────────────────────
+// 種目マスタ
+// ─────────────────────────────────────────
+const MENU = {
+  '胸': ['バーベルベンチプレス','インクラインベンチプレス','デクラインベンチプレス','ダンベルベンチプレス','インクラインダンベルプレス','ダンベルフライ','インクラインダンベルフライ','ペックデックフライ','ケーブルクロスオーバー','ディップス'],
+  '肩': ['バーベルショルダープレス','ダンベルショルダープレス','アーノルドプレス','サイドレイズ','フロントレイズ','リアレイズ','フェイスプル','アップライトロウ','ケーブルサイドレイズ'],
+  '背中': ['デッドリフト','懸垂（チンアップ）','懸垂（プルアップ）','ラットプルダウン','シーテッドケーブルロウ','ベントオーバーバーベルロウ','ダンベルロウ','Tバーロウ','チェストサポートロウ','シュラッグ'],
+  '腕(二頭)': ['バーベルカール','EZバーカール','ダンベルカール','ハンマーカール','インクラインダンベルカール','コンセントレーションカール','ケーブルカール','プリーチャーカール'],
+  '腕(三頭)': ['トライセプスプッシュダウン','オーバーヘッドトライセプスエクステンション','スカルクラッシャー','クローズグリップベンチプレス','キックバック','ダンベルトライセプスプレス'],
+  '脚': ['バーベルスクワット','ゴブレットスクワット','フロントスクワット','レッグプレス','ハックスクワット','ブルガリアンスプリットスクワット','ルーマニアンデッドリフト','レッグカール','レッグエクステンション','カーフレイズ','ヒップスラスト','グルートブリッジ'],
+  '腹': ['クランチ','リバースクランチ','レッグレイズ','ハンギングレッグレイズ','プランク','サイドプランク','ロシアンツイスト','アブローラー','ドラゴンフラッグ'],
+};
+
+// ─────────────────────────────────────────
+// 日付ユーティリティ
+// ─────────────────────────────────────────
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function fmtDate(s) {
+  const d = new Date(s + 'T00:00:00');
+  const day = ['日','月','火','水','木','金','土'][d.getDay()];
+  return `${d.getMonth()+1}/${d.getDate()}(${day})`;
+}
+
+function shiftDateStr(s, delta) {
+  const d = new Date(s + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ─────────────────────────────────────────
+// 日付ナビ（記録するタブ用）
+// ─────────────────────────────────────────
+let activeDate = todayStr();
+
+function updateDateNav() {
+  const today = todayStr();
+  document.getElementById('date-nav-label').textContent = fmtDate(activeDate);
+  document.getElementById('date-today-btn').style.display = activeDate === today ? 'none' : 'inline-block';
+  document.getElementById('date-next-btn').disabled = activeDate >= today;
+}
+
+function shiftDate(delta) {
+  const next = shiftDateStr(activeDate, delta);
+  if (next > todayStr()) return;
+  activeDate = next;
+  updateDateNav();
+  if (currentPage === 'log') { session = null; renderLog(); }
+}
+
+function goToday() {
+  activeDate = todayStr();
+  updateDateNav();
+  if (currentPage === 'log') { session = null; renderLog(); }
+}
+
+// ─────────────────────────────────────────
+// カレンダー状態
+// ─────────────────────────────────────────
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-indexed
+
+function shiftCalMonth(delta) {
+  calMonth += delta;
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0;  calYear++; }
+  if (currentPage === 'today') renderToday();
+}
+
+function calDayClick(dateStr) {
+  if (dateStr > todayStr()) return;
+  activeDate = dateStr;
+  updateDateNav();
+  goPage('log', document.getElementById('nav-log'));
+}
+
+// ─────────────────────────────────────────
+// セッション管理
+// ─────────────────────────────────────────
+function getSession(date) {
+  return load().find(w => w.date === date) || { date, exercises: [] };
+}
+
+function saveSession(sess) {
+  const data = load();
+  const i = data.findIndex(w => w.date === sess.date);
+  if (i >= 0) data[i] = sess; else data.push(sess);
+  data.sort((a,b) => a.date.localeCompare(b.date));
+  save(data);
+  pushToCloud(sess);
+}
+
+function prevRecord(name, beforeDate) {
+  const past = load().filter(w => w.date < beforeDate).sort((a,b) => b.date.localeCompare(a.date));
+  for (const w of past) {
+    const ex = w.exercises.find(e => e.name === name);
+    if (ex && ex.sets.length > 0) return { date: w.date, sets: ex.sets };
+  }
+  return null;
+}
+
+function maxKg(sets) {
+  if (!sets || !sets.length) return 0;
+  return Math.max(...sets.map(s => parseFloat(s.w) || 0));
+}
+
+// ─────────────────────────────────────────
+// ページ切替
+// ─────────────────────────────────────────
+let currentPage = 'today';
+
+function goPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  currentPage = name;
+  document.getElementById('date-nav').style.display = name === 'log' ? 'flex' : 'none';
+  if (name === 'today')    renderToday();
+  if (name === 'log')      renderLog();
+  if (name === 'progress') renderProgress();
+  if (name === 'settings') renderSettings();
+}
+
+// ─────────────────────────────────────────
+// ホーム画面
+// ─────────────────────────────────────────
+function calcDaysSince(data, today) {
+  const dates = data
+    .filter(w => w.exercises.length > 0 && w.date <= today)
+    .map(w => w.date)
+    .sort((a,b) => b.localeCompare(a));
+  if (!dates.length) return null;
+  const last = new Date(dates[0] + 'T00:00:00');
+  const now  = new Date(today + 'T00:00:00');
+  return Math.round((now - last) / 86400000);
+}
+
+function calcStreak(data, today) {
+  const dates = new Set(data.filter(w => w.exercises.length > 0).map(w => w.date));
+  let streak = 0;
+  let d = today;
+  // 今日まだ記録がなければ昨日から数える
+  if (!dates.has(d)) d = shiftDateStr(d, -1);
+  while (dates.has(d)) {
+    streak++;
+    d = shiftDateStr(d, -1);
+  }
+  return streak;
+}
+
+function heroConfig(daysSince) {
+  if (daysSince === null) return { numClass:'orange', message:'まだ記録がありません。\n今日が初日！ここから始めよう！' };
+  if (daysSince === 0)    return { numClass:'green',  message:'今日もトレーニング済み！\n最高のパフォーマンスを維持中！' };
+  if (daysSince === 1)    return { numClass:'green',  message:'昨日やった！調子いいね。\n次のトレーニングが楽しみ！' };
+  if (daysSince === 2)    return { numClass:'orange', message:'2日ぶり。\nそろそろ体がウズウズしてきた頃！' };
+  if (daysSince === 3)    return { numClass:'orange', message:'3日経過。\n今日行けば理想のペースに戻れる！' };
+  if (daysSince <= 5)     return { numClass:'red',    message:'少し空きすぎかも…\n筋肉が待ってるよ！今日こそ行こう！' };
+  if (daysSince <= 7)     return { numClass:'red',    message:'1週間のブランク！\n体はまだ覚えてる。今日リセットしよう！' };
+  return                         { numClass:'red',    message:`${daysSince}日ぶり！\n久しぶりでも大丈夫。一歩踏み出そう！` };
+}
+
+function buildCalendarHtml(data) {
+  const workoutDates = new Set(data.filter(w => w.exercises.length > 0).map(w => w.date));
+  const today = todayStr();
+  const year = calYear, month = calMonth;
+  const firstDow = new Date(year, month, 1).getDay();
+  const lastDay  = new Date(year, month + 1, 0).getDate();
+
+  let html = `<div class="calendar-card">
+    <div class="cal-header">
+      <button class="cal-nav-btn" onclick="shiftCalMonth(-1)">&#8249;</button>
+      <div class="cal-title">${year}年${month+1}月</div>
+      <button class="cal-nav-btn" onclick="shiftCalMonth(1)">&#8250;</button>
+    </div>
+    <div class="cal-grid">`;
+
+  ['日','月','火','水','木','金','土'].forEach(d => {
+    html += `<div class="cal-dow">${d}</div>`;
+  });
+
+  for (let i = 0; i < firstDow; i++) html += `<div class="cal-day"></div>`;
+
+  for (let d = 1; d <= lastDay; d++) {
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = (firstDow + d - 1) % 7;
+    const hasRecord = workoutDates.has(ds);
+    const isToday   = ds === today;
+    const isFuture  = ds > today;
+
+    let cls = 'cal-day';
+    if (hasRecord) cls += ' has-record';
+    if (isToday)   cls += ' is-today';
+    if (!hasRecord && dow === 0) cls += ' is-sun';
+    if (!hasRecord && dow === 6) cls += ' is-sat';
+
+    const style = isFuture ? ' style="opacity:0.2;cursor:default;"' : '';
+    const click  = !isFuture ? ` onclick="calDayClick('${ds}')"` : '';
+    html += `<div class="${cls}"${style}${click}>${d}</div>`;
+  }
+
+  html += `</div></div>`;
+  return html;
+}
+
+function renderToday() {
+  const today = todayStr();
+  const data  = load();
+  const el    = document.getElementById('today-body');
+
+  const daysSince = calcDaysSince(data, today);
+  const streak    = calcStreak(data, today);
+  const { numClass, message } = heroConfig(daysSince);
+
+  // 今月のトレーニング数
+  const ym = today.slice(0, 7);
+  const monthCount = data.filter(w => w.date.startsWith(ym) && w.exercises.length > 0).length;
+
+  // ヒーローカード
+  let heroInner = '';
+  if (daysSince === null) {
+    heroInner = `<div class="hero-days-num orange" style="font-size:40px;">START</div>`;
+  } else if (daysSince === 0) {
+    heroInner = `<div class="hero-today-label">TODAY DONE</div>`;
+  } else {
+    heroInner = `<div class="hero-days-num ${numClass}">${daysSince}</div>
+      <div class="hero-days-sub">日ぶりのトレーニング</div>`;
+  }
+
+  let html = `
+    <div class="hero-card">
+      ${heroInner}
+      <div class="hero-message">${message.replace(/\n/g,'<br>')}</div>
+    </div>
+  `;
+
+  // 統計
+  const streakIcon = streak >= 7 ? '🔥' : streak >= 3 ? '⚡' : '💪';
+  html += `
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon">📅</div>
+        <div class="stat-value">${monthCount}<span class="stat-unit">回</span></div>
+        <div class="stat-label">今月の<br>トレーニング</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">${streakIcon}</div>
+        <div class="stat-value">${streak}<span class="stat-unit">日</span></div>
+        <div class="stat-label">連続<br>トレーニング</div>
+      </div>
+    </div>
+  `;
+
+  // カレンダー
+  html += buildCalendarHtml(data);
+
+  // 今日の記録サマリー
+  const sess = getSession(today);
+  if (sess.exercises.length > 0) {
+    html += `<div class="card">
+      <div class="section-title" style="font-size:14px;margin-bottom:12px;">今日の記録</div>`;
+    for (const ex of sess.exercises) {
+      const prev   = prevRecord(ex.name, today);
+      const todayMax = maxKg(ex.sets);
+      const prevMax  = prev ? maxKg(prev.sets) : null;
+      const isPR     = prevMax !== null && todayMax > prevMax;
+      html += `<div class="today-summary-ex">
+        <div class="today-summary-name">${ex.name}${isPR ? '<span class="pr-badge">PR!</span>' : ''}</div>
+        <div class="today-summary-sets">${ex.sets.map((s,i) => `${i+1}セット: ${s.w}kg × ${s.r}回`).join('　')}</div>
+      </div>`;
+    }
+    html += `<button class="btn btn-ghost" style="margin-top:8px;" onclick="switchToLog()">編集する</button></div>`;
+  } else {
+    html += `<button class="btn btn-primary" onclick="switchToLog()">今日のトレーニングを記録する</button>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function switchToLog() {
+  activeDate = todayStr();
+  updateDateNav();
+  goPage('log', document.getElementById('nav-log'));
+}
+
+// ─────────────────────────────────────────
+// 記録するタブ
+// ─────────────────────────────────────────
+let session = null;
+
+function renderLog() {
+  session = getSession(activeDate);
+  const el = document.getElementById('log-body');
+  const isToday = activeDate === todayStr();
+  let html = `<button class="btn btn-primary" onclick="openModal()">＋ 種目を追加</button>`;
+
+  if (!session.exercises.length) {
+    html += `<div class="empty"><div class="empty-icon" style="font-size:36px;">📋</div>
+      <div class="empty-text">${isToday ? '種目を追加してください' : 'この日の記録はありません'}</div></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  session.exercises.forEach((ex, ei) => {
+    const prev = prevRecord(ex.name, activeDate);
+    html += `<div class="ex-card">
+      <div class="ex-header">
+        <div class="ex-name">${ex.name}</div>
+        <button class="ex-delete" onclick="deleteEx(${ei})">🗑</button>
+      </div>`;
+    if (prev) {
+      const prevText = prev.sets.map((s,i) => `${i+1}セット: ${s.w}kg × ${s.r}回`).join('\n');
+      html += `<div class="prev-box"><div class="prev-label">前回 ${fmtDate(prev.date)}</div>
+        <div class="prev-text" style="white-space:pre-line;">${prevText}</div></div>`;
+    } else {
+      html += `<div class="no-prev">前回の記録なし</div>`;
+    }
+    ex.sets.forEach((s, si) => {
+      html += `<div class="set-row">
+        <div class="set-num">${si+1}</div>
+        <div class="input-wrap">
+          <div class="input-label">kg</div>
+          <input class="num-input" type="number" inputmode="decimal" step="2.5" min="0"
+            value="${s.w||40}" placeholder="40" onchange="updSet(${ei},${si},'w',this.value)">
+        </div>
+        <div class="input-wrap">
+          <div class="input-label">回</div>
+          <input class="num-input" type="number" inputmode="numeric" step="1" min="0"
+            value="${s.r||''}" placeholder="0" onchange="updSet(${ei},${si},'r',this.value)">
+        </div>
+        <button class="set-del" onclick="delSet(${ei},${si})">✕</button>
+      </div>`;
+    });
+    html += `<button class="add-set-btn" onclick="addSet(${ei})">＋ セットを追加</button></div>`;
+  });
+
+  const finishLabel = isToday ? '完了・ホームに戻る' : '完了・この日の記録を保存';
+  html += `<button class="btn btn-primary" style="margin-top:8px;" onclick="finishLog()">${finishLabel}</button>`;
+  el.innerHTML = html;
+}
+
+function updSet(ei, si, field, val) {
+  session.exercises[ei].sets[si][field] = parseFloat(val) || 0;
+  saveSession(session);
+}
+function addSet(ei) {
+  const sets = session.exercises[ei].sets;
+  const last = sets.length ? sets[sets.length-1] : {w:40,r:0};
+  sets.push({w: last.w, r: last.r});
+  saveSession(session);
+  renderLog();
+}
+function delSet(ei, si) {
+  session.exercises[ei].sets.splice(si, 1);
+  saveSession(session);
+  renderLog();
+}
+function deleteEx(ei) {
+  if (!confirm(`「${session.exercises[ei].name}」を削除しますか？`)) return;
+  session.exercises.splice(ei, 1);
+  saveSession(session);
+  renderLog();
+}
+function finishLog() {
+  saveSession(session);
+  goPage('today', document.getElementById('nav-today'));
+}
+
+// ─────────────────────────────────────────
+// モーダル
+// ─────────────────────────────────────────
+let selectedGroup = '胸';
+
+function openModal() {
+  if (!session) session = getSession(activeDate);
+  renderModalTags();
+  renderModalList();
+  document.getElementById('custom-input').value = '';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function renderModalTags() {
+  document.getElementById('modal-tags').innerHTML = Object.keys(MENU).map(g =>
+    `<div class="tag${g===selectedGroup?' on':''}" onclick="selGroup('${g}')">${g}</div>`
+  ).join('');
+}
+function selGroup(g) { selectedGroup = g; renderModalTags(); renderModalList(); }
+
+function renderModalList() {
+  const used = session.exercises.map(e => e.name);
+  const favs = loadFavs();
+  let html = '';
+
+  if (favs.length > 0) {
+    html += `<div class="modal-section-label">★ お気に入り</div>`;
+    favs.forEach(name => {
+      html += buildExOption(name, used.includes(name), true);
+    });
+  }
+
+  html += `<div class="modal-section-label">${selectedGroup}</div>`;
+  (MENU[selectedGroup] || []).forEach(name => {
+    html += buildExOption(name, used.includes(name), favs.includes(name));
+  });
+
+  document.getElementById('modal-list').innerHTML = html;
+}
+
+function buildExOption(name, isUsed, isFav) {
+  const esc = name.replace(/'/g, "\\'");
+  return `<div class="ex-option${isUsed?' used':''}" onclick="addEx('${esc}')">
+    <div class="ex-option-name">${name}</div>
+    <div class="ex-option-right">
+      <button class="fav-btn" onclick="event.stopPropagation();toggleFav('${esc}')">${isFav?'★':'☆'}</button>
+      <div class="ex-option-add">${isUsed ? '追加済' : '＋'}</div>
+    </div>
+  </div>`;
+}
+
+function addEx(name) {
+  if (!session.exercises.find(e => e.name === name)) {
+    session.exercises.push({ name, sets: [{w:40,r:''}] });
+    saveSession(session);
+  }
+  closeModal();
+  renderLog();
+}
+function addCustom() {
+  const name = document.getElementById('custom-input').value.trim();
+  if (!name) return;
+  addEx(name);
+}
+
+// ─────────────────────────────────────────
+// 推移タブ
+// ─────────────────────────────────────────
+function renderProgress() {
+  const data = load();
+  const el = document.getElementById('progress-body');
+  if (!data.length) { el.innerHTML = `<div class="no-data">まだ記録がありません</div>`; return; }
+
+  const exMap = {};
+  for (const sess of data) {
+    for (const ex of sess.exercises) {
+      if (!exMap[ex.name]) exMap[ex.name] = [];
+      const mx = maxKg(ex.sets);
+      if (mx > 0) exMap[ex.name].push({ date: sess.date, max: mx, sets: ex.sets });
+    }
+  }
+
+  let html = '';
+  for (const [name, records] of Object.entries(exMap)) {
+    if (!records.length) continue;
+    const sorted = records.sort((a,b) => a.date.localeCompare(b.date));
+    const maxVal = Math.max(...sorted.map(r => r.max));
+    const recent = sorted.slice(-10);
+
+    html += `<div class="card"><div class="section-title">${name}</div>
+      <div class="chart-wrap"><div class="chart">`;
+    recent.forEach(r => {
+      const h = maxVal > 0 ? Math.round((r.max / maxVal) * 100) : 4;
+      html += `<div class="bar-col">
+        <div class="bar-val">${r.max}kg</div>
+        <div class="bar" style="height:${h}px;"></div>
+        <div class="bar-date">${fmtDate(r.date)}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+    const latest = sorted[sorted.length - 1];
+    html += `<div style="margin-top:10px;font-size:12px;color:#888;">最新（${fmtDate(latest.date)}）</div>`;
+    latest.sets.forEach((s,i) => {
+      html += `<div style="font-size:13px;color:#ccc;padding:3px 0;">${i+1}セット: <b style="color:#eee;">${s.w}kg × ${s.r}回</b></div>`;
+    });
+    html += `</div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ─────────────────────────────────────────
+// 設定タブ
+// ─────────────────────────────────────────
+function renderSettings() {
+  const uid = getUid();
+  document.getElementById('uid-display').textContent = uid.slice(0,8) + '...' + uid.slice(-4);
+  document.getElementById('uid-display').title = uid;
+}
+function copyUid() {
+  navigator.clipboard.writeText(getUid()).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'コピー済!';
+    setTimeout(() => btn.textContent = 'コピー', 2000);
+  });
+}
+async function linkDevice() {
+  const input = document.getElementById('link-input').value.trim();
+  if (!input) { alert('同期コードを入力してください'); return; }
+  if (input.length < 10) { alert('コードが短すぎます'); return; }
+  if (!confirm('この端末のデータをリンク先で上書きします。続けますか？')) return;
+  localStorage.setItem('wk_uid', input);
+  document.getElementById('link-input').value = '';
+  const ok = await syncFromCloud();
+  alert(ok ? 'リンク完了！データを同期しました。' : '同期コードは保存しましたが接続に失敗しました。');
+  if (ok) { renderSettings(); renderToday(); }
+}
+
+// ─────────────────────────────────────────
+// 初期化
+// ─────────────────────────────────────────
+async function init() {
+  updateDateNav();
+  renderToday();
+  await syncFromCloud();
+  renderToday();
+}
+init();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
+}
+</script>
+</body>
+</html>
