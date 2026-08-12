@@ -427,7 +427,8 @@ body {
   padding: 0 4px;
   min-width: max-content;
 }
-.bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+.bar-col:active .bar { filter: brightness(1.15); }
 .bar-val { font-size: 10px; color: #f5a623; font-weight: bold; }
 .bar {
   width: 36px;
@@ -586,6 +587,15 @@ body {
       <button class="btn btn-primary" onclick="addCustom()">追加する</button>
     </div>
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+  </div>
+</div>
+
+<!-- 日別詳細モーダル -->
+<div class="modal-bg" id="detail-modal" onclick="if(event.target===this) closeDetailModal()">
+  <div class="modal">
+    <div class="modal-title" id="detail-modal-title"></div>
+    <div id="detail-modal-body"></div>
+    <button class="btn btn-secondary" onclick="closeDetailModal()">閉じる</button>
   </div>
 </div>
 
@@ -1139,24 +1149,33 @@ function addCustom() {
 // ─────────────────────────────────────────
 // 推移タブ
 // ─────────────────────────────────────────
+// タップされたバーの詳細をindexで引けるように、renderProgress()のたびに作り直す
+let _progressGroupRecords = [];
+let _progressExRecords = [];
+
 function renderProgress() {
   const data = load();
   const el = document.getElementById('progress-body');
   if (!data.length) { el.innerHTML = `<div class="no-data">まだ記録がありません</div>`; return; }
 
+  _progressGroupRecords = [];
+  _progressExRecords = [];
+
   // 部位ごと（その日にやった該当種目の合計）のボリューム集計
   const groupMap = {};
   for (const sess of data) {
-    const dayGroupVol = {};
+    const dayGroupData = {};
     for (const ex of sess.exercises) {
       const group = EX_TO_GROUP[ex.name];
       if (!group) continue;
-      dayGroupVol[group] = (dayGroupVol[group] || 0) + volumeKg(ex.sets);
+      if (!dayGroupData[group]) dayGroupData[group] = { volume: 0, exercises: [] };
+      dayGroupData[group].volume += volumeKg(ex.sets);
+      dayGroupData[group].exercises.push({ name: ex.name, sets: ex.sets });
     }
-    for (const [group, vol] of Object.entries(dayGroupVol)) {
-      if (vol <= 0) continue;
+    for (const [group, d] of Object.entries(dayGroupData)) {
+      if (d.volume <= 0) continue;
       if (!groupMap[group]) groupMap[group] = [];
-      groupMap[group].push({ date: sess.date, volume: vol });
+      groupMap[group].push({ date: sess.date, volume: d.volume, exercises: d.exercises });
     }
   }
 
@@ -1164,7 +1183,7 @@ function renderProgress() {
 
   const groupsWithData = Object.keys(MENU).filter(g => groupMap[g] && groupMap[g].length);
   if (groupsWithData.length) {
-    html += `<div class="page-title" style="margin-top:0;">部位別ボリューム（同じ日に行った全種目の合計）</div>`;
+    html += `<div class="page-title" style="margin-top:0;">部位別ボリューム（同じ日に行った全種目の合計・タップで内訳表示）</div>`;
     for (const group of groupsWithData) {
       const sorted = groupMap[group].sort((a,b) => a.date.localeCompare(b.date));
       const maxVal = Math.max(...sorted.map(r => r.volume));
@@ -1174,7 +1193,8 @@ function renderProgress() {
         <div class="chart-wrap"><div class="chart">`;
       recent.forEach(r => {
         const h = maxVal > 0 ? Math.round((r.volume / maxVal) * 100) : 4;
-        html += `<div class="bar-col">
+        const idx = _progressGroupRecords.push({ group, date: r.date, exercises: r.exercises }) - 1;
+        html += `<div class="bar-col" onclick="showGroupDetail(${idx})">
           <div class="bar-val">${Math.round(r.volume).toLocaleString()}kg</div>
           <div class="bar" style="height:${h}px;"></div>
           <div class="bar-date">${fmtDate(r.date)}</div>
@@ -1182,7 +1202,7 @@ function renderProgress() {
       });
       html += `</div></div></div>`;
     }
-    html += `<div class="page-title">種目別ボリューム</div>`;
+    html += `<div class="page-title">種目別ボリューム（タップで内訳表示）</div>`;
   }
 
   const exMap = {};
@@ -1205,7 +1225,8 @@ function renderProgress() {
       <div class="chart-wrap"><div class="chart">`;
     recent.forEach(r => {
       const h = maxVal > 0 ? Math.round((r.volume / maxVal) * 100) : 4;
-      html += `<div class="bar-col">
+      const idx = _progressExRecords.push({ name, date: r.date, sets: r.sets }) - 1;
+      html += `<div class="bar-col" onclick="showExDetail(${idx})">
         <div class="bar-val">${Math.round(r.volume).toLocaleString()}kg</div>
         <div class="bar" style="height:${h}px;"></div>
         <div class="bar-date">${fmtDate(r.date)}</div>
@@ -1220,6 +1241,49 @@ function renderProgress() {
     html += `</div>`;
   }
   el.innerHTML = html;
+}
+
+// ─── 推移タブ：バータップで日別詳細を表示 ──────────
+function setsDetailHtml(sets) {
+  return sets.map((s,i) =>
+    `<div style="font-size:14px;color:#ccc;padding:4px 0;">${i+1}セット: <b style="color:#eee;">${s.w}kg × ${s.r}回</b></div>`
+  ).join('');
+}
+
+function showExDetail(idx) {
+  const r = _progressExRecords[idx];
+  if (!r) return;
+  const vol = volumeKg(r.sets);
+  const body = `
+    <div style="font-size:13px;color:#888;margin-bottom:10px;">合計ボリューム: <b style="color:#f5a623;">${Math.round(vol).toLocaleString()}kg</b></div>
+    ${setsDetailHtml(r.sets)}
+  `;
+  openDetailModal(`${r.name}（${fmtDate(r.date)}）`, body);
+}
+
+function showGroupDetail(idx) {
+  const r = _progressGroupRecords[idx];
+  if (!r) return;
+  const totalVol = r.exercises.reduce((sum, e) => sum + volumeKg(e.sets), 0);
+  const body = `
+    <div style="font-size:13px;color:#888;margin-bottom:12px;">合計ボリューム: <b style="color:#f5a623;">${Math.round(totalVol).toLocaleString()}kg</b></div>
+    ${r.exercises.map(e => `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:14px;color:#f5a623;font-weight:bold;margin-bottom:4px;">${e.name}</div>
+        ${setsDetailHtml(e.sets)}
+      </div>
+    `).join('')}
+  `;
+  openDetailModal(`${r.group}（${fmtDate(r.date)}）`, body);
+}
+
+function openDetailModal(title, bodyHtml) {
+  document.getElementById('detail-modal-title').textContent = title;
+  document.getElementById('detail-modal-body').innerHTML = bodyHtml;
+  document.getElementById('detail-modal').classList.add('open');
+}
+function closeDetailModal() {
+  document.getElementById('detail-modal').classList.remove('open');
 }
 
 // ─────────────────────────────────────────
