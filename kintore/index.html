@@ -692,14 +692,20 @@ async function manualSync() {
 // 種目マスタ
 // ─────────────────────────────────────────
 const MENU = {
-  '胸': ['バーベルベンチプレス','インクラインベンチプレス','デクラインベンチプレス','ダンベルベンチプレス','インクラインダンベルプレス','ダンベルフライ','インクラインダンベルフライ','ペックデックフライ','ケーブルクロスオーバー','ディップス'],
-  '肩': ['バーベルショルダープレス','ダンベルショルダープレス','アーノルドプレス','サイドレイズ','フロントレイズ','リアレイズ','フェイスプル','アップライトロウ','ケーブルサイドレイズ'],
+  '胸': ['バーベルベンチプレス','インクラインベンチプレス','デクラインベンチプレス','ダンベルベンチプレス','インクラインダンベルプレス','ダンベルフライ','インクラインダンベルフライ','ペックデックフライ','ケーブルクロスオーバー','ディップス','チェストプレスマシン'],
+  '肩': ['バーベルショルダープレス','ダンベルショルダープレス','アーノルドプレス','サイドレイズ','フロントレイズ','リアレイズ','フェイスプル','アップライトロウ','ケーブルサイドレイズ','マシンショルダープレス'],
   '背中': ['デッドリフト','懸垂（チンアップ）','懸垂（プルアップ）','ラットプルダウン','シーテッドケーブルロウ','ベントオーバーバーベルロウ','ダンベルロウ','Tバーロウ','チェストサポートロウ','シュラッグ'],
   '腕(二頭)': ['バーベルカール','EZバーカール','ダンベルカール','ハンマーカール','インクラインダンベルカール','コンセントレーションカール','ケーブルカール','プリーチャーカール'],
-  '腕(三頭)': ['トライセプスプッシュダウン','オーバーヘッドトライセプスエクステンション','スカルクラッシャー','クローズグリップベンチプレス','キックバック','ダンベルトライセプスプレス'],
+  '腕(三頭)': ['トライセプスプッシュダウン','オーバーヘッドトライセプスエクステンション','スカルクラッシャー','クローズグリップベンチプレス','キックバック','ダンベルトライセプスプレス','ケーブルプルダウン'],
   '脚': ['バーベルスクワット','ゴブレットスクワット','フロントスクワット','レッグプレス','ハックスクワット','ブルガリアンスプリットスクワット','ルーマニアンデッドリフト','レッグカール','レッグエクステンション','カーフレイズ','ヒップスラスト','グルートブリッジ'],
   '腹': ['クランチ','リバースクランチ','レッグレイズ','ハンギングレッグレイズ','プランク','サイドプランク','ロシアンツイスト','アブローラー','ドラゴンフラッグ'],
 };
+
+// 種目名 → 部位 の逆引き（種目マスタにない自己入力の種目は部位別集計の対象外）
+const EX_TO_GROUP = {};
+for (const [group, names] of Object.entries(MENU)) {
+  names.forEach(name => { EX_TO_GROUP[name] = group; });
+}
 
 // ─────────────────────────────────────────
 // 日付ユーティリティ
@@ -795,6 +801,11 @@ function prevRecord(name, beforeDate) {
 function maxKg(sets) {
   if (!sets || !sets.length) return 0;
   return Math.max(...sets.map(s => parseFloat(s.w) || 0));
+}
+
+function volumeKg(sets) {
+  if (!sets || !sets.length) return 0;
+  return sets.reduce((sum, s) => sum + (parseFloat(s.w) || 0) * (parseFloat(s.r) || 0), 0);
 }
 
 // ─────────────────────────────────────────
@@ -1133,28 +1144,69 @@ function renderProgress() {
   const el = document.getElementById('progress-body');
   if (!data.length) { el.innerHTML = `<div class="no-data">まだ記録がありません</div>`; return; }
 
-  const exMap = {};
+  // 部位ごと（その日にやった該当種目の合計）のボリューム集計
+  const groupMap = {};
   for (const sess of data) {
+    const dayGroupVol = {};
     for (const ex of sess.exercises) {
-      if (!exMap[ex.name]) exMap[ex.name] = [];
-      const mx = maxKg(ex.sets);
-      if (mx > 0) exMap[ex.name].push({ date: sess.date, max: mx, sets: ex.sets });
+      const group = EX_TO_GROUP[ex.name];
+      if (!group) continue;
+      dayGroupVol[group] = (dayGroupVol[group] || 0) + volumeKg(ex.sets);
+    }
+    for (const [group, vol] of Object.entries(dayGroupVol)) {
+      if (vol <= 0) continue;
+      if (!groupMap[group]) groupMap[group] = [];
+      groupMap[group].push({ date: sess.date, volume: vol });
     }
   }
 
   let html = '';
+
+  const groupsWithData = Object.keys(MENU).filter(g => groupMap[g] && groupMap[g].length);
+  if (groupsWithData.length) {
+    html += `<div class="page-title" style="margin-top:0;">部位別ボリューム（同じ日に行った全種目の合計）</div>`;
+    for (const group of groupsWithData) {
+      const sorted = groupMap[group].sort((a,b) => a.date.localeCompare(b.date));
+      const maxVal = Math.max(...sorted.map(r => r.volume));
+      const recent = sorted.slice(-10);
+
+      html += `<div class="card"><div class="section-title">${group}</div>
+        <div class="chart-wrap"><div class="chart">`;
+      recent.forEach(r => {
+        const h = maxVal > 0 ? Math.round((r.volume / maxVal) * 100) : 4;
+        html += `<div class="bar-col">
+          <div class="bar-val">${Math.round(r.volume).toLocaleString()}kg</div>
+          <div class="bar" style="height:${h}px;"></div>
+          <div class="bar-date">${fmtDate(r.date)}</div>
+        </div>`;
+      });
+      html += `</div></div></div>`;
+    }
+    html += `<div class="page-title">種目別ボリューム</div>`;
+  }
+
+  const exMap = {};
+  for (const sess of data) {
+    for (const ex of sess.exercises) {
+      if (!exMap[ex.name]) exMap[ex.name] = [];
+      const vol = volumeKg(ex.sets);
+      if (vol > 0) exMap[ex.name].push({ date: sess.date, volume: vol, sets: ex.sets });
+    }
+  }
+
   for (const [name, records] of Object.entries(exMap)) {
     if (!records.length) continue;
     const sorted = records.sort((a,b) => a.date.localeCompare(b.date));
-    const maxVal = Math.max(...sorted.map(r => r.max));
+    const maxVal = Math.max(...sorted.map(r => r.volume));
     const recent = sorted.slice(-10);
 
     html += `<div class="card"><div class="section-title">${name}</div>
+      <div style="font-size:11px;color:#888;margin:-6px 0 8px;">総ボリューム（重量×回数の合計）</div>
       <div class="chart-wrap"><div class="chart">`;
     recent.forEach(r => {
-      const h = maxVal > 0 ? Math.round((r.max / maxVal) * 100) : 4;
+      const h = maxVal > 0 ? Math.round((r.volume / maxVal) * 100) : 4;
       html += `<div class="bar-col">
-        <div class="bar-val">${r.max}kg</div>
+        <div class="bar-val">${Math.round(r.volume).toLocaleString()}kg</div>
         <div class="bar" style="height:${h}px;"></div>
         <div class="bar-date">${fmtDate(r.date)}</div>
       </div>`;
