@@ -1,0 +1,44 @@
+[
+  {
+    "id": "2026-08-13-01",
+    "date": "2026-08-13",
+    "headline": "相手ながら圧巻、筒香嘉智が1人2発",
+    "draft_text": "今日の相手・筒香嘉智選手が1人で2本塁打。悔しい結果ですが、あの一振りは見ていて鳥肌でした。中日投手陣としてどう攻略するか、次戦への課題です。#中日ドラゴンズ",
+    "angle": "自軍が敗れた試合でも相手の凄さを素直に認める切り口。共感性・意外性が高く、他球団ファンへのリーチも期待できる。",
+    "source": "https://baseball.yahoo.co.jp/npb/game/2021039268/stats",
+    "critic_score": 8.5,
+    "critic_note": "8案中フック・共感性・リーチの広さが最も高いと評価。事実確認(1人2発)は必須の上で採用推奨。",
+    "status": "proposed",
+    "user_feedback": null,
+    "posted_text": null,
+    "posted_at": null
+  },
+  {
+    "id": "2026-08-13-02",
+    "date": "2026-08-13",
+    "headline": "上林誠知、今季初スタメンで初打席弾",
+    "draft_text": "上林誠知、今季初スタメンの初打席でいきなり一発!チームは1-5で敗れましたが、その中で光った一振りでした。出場機会をつかめるか、今後のアピールに注目です。#中日ドラゴンズ #上林誠知",
+    "angle": "敗戦の中の明るい材料。今季初スタメンで初打席弾という意外性・タイムリーさが強み。批評を受け最終スコアへの言及を追加しミスリードを解消。",
+    "source": "https://baseball.yahoo.co.jp/npb/game/2021039268/stats",
+    "critic_score": 7,
+    "critic_note": "人間ドラマ性が強くポジティブな話題として価値が高い。当初案は試合結果への言及がなく誤読リスクありと指摘され、修正済み。起用戦略の切り口(別案)はこの案に統合し不採用とした。",
+    "status": "proposed",
+    "user_feedback": null,
+    "posted_text": null,
+    "posted_at": null
+  },
+  {
+    "id": "2026-08-13-03",
+    "date": "2026-08-13",
+    "headline": "中日、借金15に拡大",
+    "draft_text": "中日は今日もDeNAに1-5で敗戦し、借金は15に拡大。厳しい戦況が続きますが、後半戦どこかで流れを変えたいところです。#中日ドラゴンズ",
+    "angle": "チーム状況を俯瞰する事実整理型。ファンの不安に寄り添う共感性狙い。批評を受け断定的な見出し・トーンを緩和。",
+    "source": "https://baseball.yahoo.co.jp/npb/teams/4/schedule",
+    "critic_score": 6,
+    "critic_note": "正確性リスクは低いが伸びやすさは中程度。3連戦総括案とテーマが近いため片方のみ採用。",
+    "status": "proposed",
+    "user_feedback": null,
+    "posted_text": null,
+    "posted_at": null
+  }
+]

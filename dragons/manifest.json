@@ -1,0 +1,18 @@
+{
+  "name": "ドラゴンズ ネタ帳",
+  "short_name": "Dragons",
+  "description": "中日ドラゴンズX投稿ネタの提案ログを閲覧・コピーするツール",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#0c2340",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
